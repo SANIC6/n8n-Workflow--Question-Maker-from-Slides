@@ -1,0 +1,369 @@
+{
+  "name": "Slides Question Maker",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getSlides",
+        "presentationId": "={{ $json['Slides ID'] }}"
+      },
+      "type": "n8n-nodes-base.googleSlides",
+      "typeVersion": 2,
+      "position": [
+        480,
+        32
+      ],
+      "id": "715a43e0-1705-42bb-aa5d-121bd2a52e3f",
+      "name": "Get slides from a presentation",
+      "credentials": {
+        "googleSlidesOAuth2Api": {
+          "name": "Google Slides account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format slides as \"Slide 1: ..., Slide 2: ...\"\nconst items = $input.all();\nconst formattedSlides = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const slideNumber = i + 1;\n  \n  // Extract text content from the slide\n  let slideText = '';\n  \n  // Google Slides API returns slide data with pageElements\n  if (item.json.pageElements) {\n    const textElements = item.json.pageElements\n      .filter(el => el.shape && el.shape.text)\n      .map(el => {\n        // Extract text from textElements\n        if (el.shape.text.textElements) {\n          return el.shape.text.textElements\n            .map(te => te.textRun?.content || '')\n            .join('')\n            .trim();\n        }\n        return '';\n      })\n      .filter(text => text.length > 0);\n    \n    slideText = textElements.join(' ');\n  }\n  \n  // If no text found, use a placeholder\n  if (!slideText) {\n    slideText = '(No text content)';\n  }\n  \n  formattedSlides.push({\n    json: {\n      slideNumber: slideNumber,
+      formatted: `Slide ${slideNumber}: ${slideText}`,\n      originalData: item.json\n    }\n  });\n}\n\nreturn formattedSlides;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        32
+      ],
+      "id": "2e7b69a8-e186-46b3-996f-feb099504bd5",
+      "name": "Format Slides Text"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=({{ $json.formatted }}) Make me around {{ $('Edit Fields').item.json['How many Questions'] }} questions",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "={{ $('Edit Fields').item.json['System Prompt'] }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1152,
+        32
+      ],
+      "id": "97edb1af-7d17-4501-af6f-4839ccede789",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "formatted"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        928,
+        32
+      ],
+      "id": "7c2fa70e-5ce1-4a60-8720-65176d47e497",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        256
+      ],
+      "id": "ee14da35-e7d2-4d9d-949b-29c1c3b1fbd3",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"Questions\":[\n      {\n       \"Question\":\"\",\n       \"Correct Answer\":\"\",\n       \"InCorrect Answer 1\":\"\",\n       \"InCorrect Answer 2\":\"\",\n       \"InCorrect Answer 3\":\"\"\n      }  \n    ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1328,
+        256
+      ],
+      "id": "984d4490-9ae1-43af-810d-12a75a6a885c",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Question": "={{ $json.Question }}",
+            "Correct Answer": "={{ $json['Correct Answer'] }}",
+            "Incorrect Answer 1": "={{ $json['InCorrect Answer 1'] }}",
+            "Incorrect Answer 2": "={{ $json['InCorrect Answer 2'] }}",
+            "Incorrect Answer 3": "={{ $json['InCorrect Answer 3'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Question",
+              "displayName": "Question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Correct Answer",
+              "displayName": "Correct Answer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Incorrect Answer 1",
+              "displayName": "Incorrect Answer 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Incorrect Answer 2",
+              "displayName": "Incorrect Answer 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Incorrect Answer 3",
+              "displayName": "Incorrect Answer 3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        32
+      ],
+      "id": "31eed732-4b45-40a5-84c4-179eb184ed55",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.Questions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        32
+      ],
+      "id": "cad8fc4d-8009-460a-b9dd-3c4462a8b8ec",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        32
+      ],
+      "id": "226d3f24-136e-467e-b008-d6d6f22e0a5b",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8dcb1594-fdba-4ee3-bd2c-f7c7dceeb2be",
+              "name": "System Prompt",
+              "value": "Create multiple choice questions suitable for students. Focus on key concepts and important details.",
+              "type": "string"
+            },
+            {
+              "id": "a3abd584-1c5e-4fe7-a9d0-0cce47b7777a",
+              "name": "Slides ID",
+              "value": "YOUR_SLIDES_PRESENTATION_ID",
+              "type": "string"
+            },
+            {
+              "id": "8d4dc6ac-7148-4117-aea6-cf4bbf2b9a85",
+              "name": "How many Questions",
+              "value": 40,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        32
+      ],
+      "id": "c0b84ffb-3f02-4fd6-afa0-d89697dc543c",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get slides from a presentation": {
+      "main": [
+        [
+          {
+            "node": "Format Slides Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slides Text": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Get slides from a presentation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
