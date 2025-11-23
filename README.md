@@ -21,7 +21,7 @@ Each question includes:
 - Google account with access to:
   - Google Slides API
   - Google Sheets API
-- [Google Gemini API](https://ai.google.dev/) account and API key
+- [Google Gemini API](https://ai.google.dev/)(or any other AI provider like ChatGPT) account and API key
 
 ## 🚀 Setup Instructions
 
@@ -149,19 +149,10 @@ Append to Google Sheets
 - Consider adding a delay between requests for large presentations
 - Upgrade to paid tier if processing many presentations
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
 MIT License - feel free to use and modify for your needs.
-
-## 🙏 Acknowledgments
-
-- Built with [n8n](https://n8n.io/)
-- Powered by [Google Gemini](https://ai.google.dev/)
-- Uses Google Workspace APIs
 
 ## 📧 Support
 
